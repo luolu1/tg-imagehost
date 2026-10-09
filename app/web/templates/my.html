@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}用户中心 · TG 图床{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>👤 {{ me.username and '@' ~ me.username or (me.first_name or '用户中心') }}</h1>
+    <div class="muted">UID <code>{{ me.id }}</code></div>
+  </div>
+  <div class="row">
+    {% if view == 'dashboard' %}<a class="btn ghost" href="/my/images">我的图片 →</a>{% else %}<a class="btn ghost" href="/my">返回概览</a>{% endif %}
+    <a class="btn ghost" href="/my/logout">退出登录</a>
+  </div>
+</div>
+
+{% if view == 'dashboard' %}
+
+  <div class="grid cols-3" style="margin-bottom:20px">
+    <div class="stat" style="--c:#4f8cff"><div class="ic">🖼️</div><div class="num">{{ count }}</div><div class="lbl">我的图片</div></div>
+    <div class="stat" style="--c:#22d3a6"><div class="ic">💾</div><div class="num">{{ used_h }}</div><div class="lbl">已用空间</div></div>
+    <div class="stat" style="--c:#a970ff"><div class="ic">🎯</div><div class="num">{{ quota_h }}</div><div class="lbl">配额{% if quota_custom %}（单独设置）{% endif %}</div></div>
+  </div>
+
+  {% if quota_bytes > 0 %}
+  <div class="card">
+    <div class="spread" style="margin-bottom:8px">
+      <span>空间用量</span>
+      <span class="muted">{{ used_h }} / {{ quota_h }}（{{ quota_pct }}%）</span>
+    </div>
+    <div class="progress {% if quota_pct >= 85 %}hot{% endif %}"><span style="width: {{ quota_pct }}%"></span></div>
+  </div>
+  {% endif %}
+
+  <div class="grid cols-2">
+    <div class="card">
+      <h2>⬆️ 快速上传</h2>
+      <input type="file" id="file" accept="image/*">
+      <div id="preview" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:14px">
+        <button type="button" id="uploadBtn" onclick="doUpload()">上传图片</button>
+        <span id="status" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔑 我的 API Token</h2>
+      <p class="muted" style="margin-top:0;font-size:13px">用于 Web 上传页或 API 调用，请勿泄露。</p>
+      <div class="row">
+        <input type="password" id="tokenVal" value="{{ token }}" readonly style="flex:1">
+        <button class="ghost" type="button" id="tokToggle" onclick="toggleToken()">显示</button>
+        <button class="ghost" type="button" data-copy="{{ token }}">复制</button>
+      </div>
+      <form method="post" action="/my/token/regenerate" onsubmit="return confirm('重新生成后旧 Token 立即失效，需要重新登录。确认？')" style="margin-top:14px">
+        <button class="ghost" type="submit">重新生成 Token</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="spread"><h2>上传趋势 · 近 14 天</h2><span class="muted">共 {{ chart_total }} 张</span></div>
+    <div class="chart">
+      {% for p in series %}
+      <div class="col" title="{{ p.date }}：{{ p.count }} 张">
+        <div class="cnt">{{ p.count }}</div>
+        <div class="bar" style="height: {{ (p.count / chart_max * 100) | round(1) }}%"></div>
+        <div class="cap">{{ p.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="spread"><h2>最近上传</h2><a class="btn ghost sm" href="/my/images">全部 →</a></div>
+    {% if recent %}
+    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr))">
+      {% for img in recent %}
+      <a href="/v/{{ img.id }}" class="card" style="padding:10px;margin:0;text-decoration:none;color:inherit">
+        <img src="{{ image_base }}/i/{{ img.id }}.{{ img.ext }}" loading="lazy" style="width:100%;height:110px;object-fit:cover;border-radius:9px;border:1px solid var(--border-soft)">
+        <div class="faint" style="font-size:12px;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ img.id }}</div>
+        <div class="muted" style="font-size:12px">{{ format_size(img.file_size) }} · {{ img.created_at.strftime('%m-%d %H:%M') }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">还没有上传过图片。</p>
+    {% endif %}
+  </div>
+
+{% elif view == 'images' %}
+  <form id="myBulk" method="post" action="/my/images/bulk-delete"></form>
+
+  <div class="card">
+    <form method="get" class="toolbar">
+      <input class="grow" type="text" name="q" value="{{ q }}" placeholder="按图片 ID 搜索">
+      <label style="margin:0;display:flex;align-items:center;gap:7px;color:var(--muted)">
+        <input type="checkbox" class="check" data-select-all form="myBulk"> 全选
+      </label>
+      <button type="submit">搜索</button>
+    </form>
+
+    {% if images %}
+    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
+      {% for img in images %}
+      <div class="card" style="padding:10px;margin:0">
+        <div style="position:relative">
+          <input type="checkbox" class="check" data-row-check form="myBulk" name="image_ids" value="{{ img.id }}" style="position:absolute;top:8px;left:8px;z-index:2">
+          <a href="/v/{{ img.id }}"><img src="{{ image_base }}/i/{{ img.id }}.{{ img.ext }}" loading="lazy" style="width:100%;height:140px;object-fit:cover;border-radius:9px;border:1px solid var(--border-soft)"></a>
+        </div>
+        <div class="spread" style="margin-top:8px">
+          <a href="/v/{{ img.id }}" style="font-size:13px"><code>{{ img.id }}</code></a>
+          <button class="ghost sm" type="button" data-copy="{{ image_base }}/i/{{ img.id }}.{{ img.ext }}">复制直链</button>
+        </div>
+        <div class="muted" style="font-size:12px">{{ format_size(img.file_size) }} · {{ img.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+        <div class="muted faint" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ img.file_name or '' }}">{{ img.file_name or '' }}</div>
+        <form method="post" action="/my/images/{{ img.id }}/delete" onsubmit="return confirm('确认删除 {{ img.id }}？')" style="margin-top:8px">
+          <button class="danger sm" type="submit">删除</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">没有找到图片。</p>
+    {% endif %}
+
+    {% include "_pager.html" %}
+  </div>
+
+  <div class="bulkbar" data-bulkbar data-for="myBulk">
+    <span>已选择 <span class="count" data-bulk-count>0</span> 张</span>
+    <button class="danger" type="submit" form="myBulk" onclick="return confirm('确认删除选中的图片？')">批量删除</button>
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleToken() {
+    const el = document.getElementById('tokenVal');
+    const btn = document.getElementById('tokToggle');
+    if (el.type === 'password') { el.type = 'text'; btn.textContent = '隐藏'; }
+    else { el.type = 'password'; btn.textContent = '显示'; }
+  }
+
+  const fileEl = document.getElementById('file');
+  if (fileEl) {
+    fileEl.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      const box = document.getElementById('preview');
+      if (!f) { box.innerHTML = ''; return; }
+      box.innerHTML = `<img src="${URL.createObjectURL(f)}" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--border)">`;
+    });
+  }
+
+  async function doUpload() {
+    const file = document.getElementById('file').files[0];
+    const status = document.getElementById('status');
+    if (!file) { toast('请选择文件', true); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    status.textContent = '上传中…';
+    document.getElementById('uploadBtn').disabled = true;
+    try {
+      const resp = await fetch('/my/upload', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || '上传失败');
+      status.textContent = '完成 ✅';
+      toast('上传成功');
+      setTimeout(() => location.reload(), 700);
+    } catch (err) {
+      status.textContent = '';
+      toast(err.message, true);
+      document.getElementById('uploadBtn').disabled = false;
+    }
+  }
+</script>
+{% endblock %}

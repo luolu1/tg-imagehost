@@ -1,0 +1,29 @@
+# Shared settings for both processes (web + bot).
+x-app: &app
+  build: .
+  image: tg-imagehost:latest
+  env_file: .env
+  volumes:
+    - ./data:/app/data
+  restart: unless-stopped
+
+services:
+  web:
+    <<: *app
+    container_name: tg-imagehost-web
+    command: python run_web.py
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  bot:
+    <<: *app
+    container_name: tg-imagehost-bot
+    command: python run_bot.py
+    depends_on:
+      - web

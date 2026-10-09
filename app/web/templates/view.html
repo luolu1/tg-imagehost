@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ image.id }} · TG 图床{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="spread">
+    <h1>图片详情</h1>
+    <a class="btn ghost" href="{{ direct_url }}" download>下载原图</a>
+  </div>
+  <div style="text-align:center;margin:16px 0">
+    <img src="{{ direct_url }}" alt="{{ image.id }}" style="max-width:100%;max-height:70vh;border-radius:12px;border:1px solid var(--border)">
+  </div>
+  <p class="muted">
+    ID：<code>{{ image.id }}</code> ·
+    {{ image.width }}×{{ image.height }} ·
+    {{ (image.file_size / 1024) | round(1) }} KB ·
+    浏览 {{ image.views }} ·
+    上传于 {{ image.created_at.strftime('%Y-%m-%d %H:%M') }}
+  </p>
+</div>
+
+<div class="card">
+  <h2>引用代码</h2>
+
+  <label>直链</label>
+  <div class="codebox row" style="gap:8px">
+    <span style="flex:1">{{ direct_url }}</span>
+    <button class="ghost" onclick="copyText('{{ direct_url }}')">复制</button>
+  </div>
+
+  <label>HTML</label>
+  <div class="codebox row" style="gap:8px">
+    <span style="flex:1">{{ html_code }}</span>
+    <button class="ghost" onclick="copyText('{{ html_code }}')">复制</button>
+  </div>
+
+  <label>Markdown</label>
+  <div class="codebox row" style="gap:8px">
+    <span style="flex:1">{{ md_code }}</span>
+    <button class="ghost" onclick="copyText('{{ md_code }}')">复制</button>
+  </div>
+
+  <label>BBCode</label>
+  <div class="codebox row" style="gap:8px">
+    <span style="flex:1">{{ bb_code }}</span>
+    <button class="ghost" onclick="copyText('{{ bb_code }}')">复制</button>
+  </div>
+</div>
+{% endblock %}

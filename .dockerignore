@@ -1,0 +1,26 @@
+# VCS / IDE / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+
+# Runtime data & secrets (never bake these into the image)
+.env
+data/
+*.db
+*.sqlite3
+
+# Docker meta
+Dockerfile
+docker-compose.yml
+.dockerignore

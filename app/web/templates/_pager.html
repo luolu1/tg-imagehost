@@ -1,0 +1,9 @@
+{% if pager.pages > 1 %}
+<div class="pager">
+  <span class="muted">第 {{ pager.page }}/{{ pager.pages }} 页 · 共 {{ pager.total }} 条</span>
+  {% if pager.page > 1 %}<a href="{{ request.url.include_query_params(page=pager.page - 1) }}">← 上一页</a>{% endif %}
+  {% if pager.page < pager.pages %}<a href="{{ request.url.include_query_params(page=pager.page + 1) }}">下一页 →</a>{% endif %}
+</div>
+{% else %}
+<div class="pager muted">共 {{ pager.total }} 条</div>
+{% endif %}
