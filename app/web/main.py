@@ -31,6 +31,7 @@ app = FastAPI(title="TG Image Host", version="1.0.0", lifespan=lifespan)
 async def attach_current_user(request: Request, call_next):
     """Resolve the portal cookie once per request so templates can show the
     right navigation (user center vs admin) without each route re-querying."""
+    request.state.site_name = settings.site_name
     request.state.me = None
     request.state.is_admin = False
     if request.cookies.get("tg_portal_token"):

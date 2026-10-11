@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}TG 图床{% endblock %}</title>
+  <title>{% block title %}{{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}{% endblock %}</title>
   <style>
     :root {
       --bg: #06080c;
@@ -246,7 +246,7 @@
   <header class="top">
     <div class="brand">
       <span class="logo">◳</span>
-      <span>TG 图床</span>
+      <span>{{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}</span>
       <span class="tag">IMAGE·HOST</span>
     </div>
     {% set _p = request.url.path %}

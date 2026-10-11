@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     storage_chat_id: int | None = None
     admin_ids: str = ""
 
+    # Site
+    site_name: str = "TG 图床"
+
     # Web / URLs
     # 有域名时（如走 Nginx 反代），填写完整地址：
     #   web_base_url   —— 页面访问地址（上传页 / 详情页 / 管理后台）

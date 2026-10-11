@@ -13,7 +13,7 @@ router = Router(name="common")
 
 def welcome_text(is_admin: bool) -> str:
     text = (
-        "👋 <b>欢迎使用 TG 图床</b>\n\n"
+        f"👋 <b>欢迎使用 {settings.site_name}</b>\n\n"
         "把图片发给我，我会返回一个可直接访问的链接。\n\n"
         "<b>怎么用</b>\n"
         "· 直接发送图片 / 图片文件 → 得到直链\n"

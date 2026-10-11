@@ -199,6 +199,51 @@ def main() -> int:
         assert client.get("/upload").status_code == 200
         assert client.get("/").status_code in (200, 307)
 
+        # --- guest upload: no token needed, stored ownerless + source=guest ---
+        import io
+
+        import app.web.pages as pages_mod
+        from app.services import NewImage, create_image
+
+        async def _fake_upload(session, *, owner_id, filename, mime_type, data, source="web"):
+            async with SessionLocal() as s:
+                img = await create_image(
+                    s,
+                    NewImage(
+                        file_id="GUESTFID",
+                        file_unique_id="GUESTUNIQ",
+                        file_name=filename,
+                        mime_type=mime_type,
+                        file_size=len(data),
+                        source=source,
+                        owner_id=owner_id,
+                    ),
+                )
+                return img
+
+        orig = pages_mod.upload_bytes
+        pages_mod.upload_bytes = _fake_upload
+        try:
+            r = client.post(
+                "/upload",
+                files={"file": ("guest.png", io.BytesIO(b"x" * 32), "image/png")},
+            )
+            assert r.status_code == 201, (r.status_code, r.text[:200])
+            body = r.json()
+            assert body["id"] and body["url"], body
+        finally:
+            pages_mod.upload_bytes = orig
+
+        async def _is_guest_ownerless(image_id: str):
+            async with SessionLocal() as s:
+                row = await s.get(Image, image_id)
+                return row.owner_id is None and row.source == "guest"
+
+        assert asyncio.run(_is_guest_ownerless(body["id"]))
+
+        # upload page lists recent uploads
+        assert body["id"] in client.get("/upload").text
+
     print("WEB_PORTAL_OK")
     return 0
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ image.id }} · TG 图床{% endblock %}
+{% block title %}{{ image.id }} · {{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}{% endblock %}
 {% block content %}
 <div class="card">
   <div class="spread">

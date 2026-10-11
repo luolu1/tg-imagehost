@@ -195,6 +195,17 @@ async def find_user_images(
     return list((await session.execute(stmt)).scalars())
 
 
+async def recent_images(
+    session: AsyncSession, limit: int = 12, source: str | None = None
+) -> list[Image]:
+    """Most recent active uploads, optionally filtered by source."""
+    stmt = select(Image).where(Image.is_deleted.is_(False))
+    if source is not None:
+        stmt = stmt.where(Image.source == source)
+    stmt = stmt.order_by(Image.created_at.desc()).limit(limit)
+    return list((await session.execute(stmt)).scalars())
+
+
 async def list_images(
     session: AsyncSession,
     limit: int = 50,

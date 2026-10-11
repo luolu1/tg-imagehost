@@ -20,7 +20,7 @@ class UploadError(Exception):
 async def upload_bytes(
     session: AsyncSession,
     *,
-    owner_id: int,
+    owner_id: int | None,
     filename: str,
     mime_type: str | None,
     data: bytes,

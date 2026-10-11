@@ -6,7 +6,9 @@
 ## 功能
 
 - 📤 Telegram 私聊 / 群聊发图即得直链
-- 🌐 Web 上传页（粘贴 API Token 即可上传）
+- 🌐 Web 上传页：打开网站即可直接上传（游客模式，无需登录），支持多选 / 拖拽 / 粘贴
+- 🕒 上传页展示最近公开上传记录
+- 🏷 站点名称可通过 `.env` 的 `SITE_NAME` 自定义
 - 👤 用户中心（用 API Token 登录，管理自己的图片与用量）
 - 🔌 REST API，可对接 PicGo / ShareX / 自定义脚本
 - 🗑 删除与权限管理（用户删自己的，管理员删全部）
@@ -95,7 +97,7 @@ python run_web.py
 
 ### Web
 
-- 上传页：`http://<host>:8080/upload`
+- 上传页：`http://<host>:8080/upload`（**打开即可直接上传，无需登录**，记录为游客上传；页面底部展示最近公开上传）
 - 用户中心：`http://<host>:8080/my`（用 `/token` 拿到的 API Token 登录，可上传、查看/批量删除自己的图片、查看配额与上传趋势）
 - 图片页面：`http://<host>:8080/v/<id>`
 - 管理后台：`http://<host>:8080/admin`（无独立账号密码；管理员用自己的 API Token 在用户中心登录后自动进入）
@@ -143,6 +145,7 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" \
 | 变量 | 说明 |
 | --- | --- |
 | `BOT_TOKEN` | 必填，BotFather 提供 |
+| `SITE_NAME` | 站点名称，显示在网页标题/顶栏与机器人欢迎语，默认 `TG 图床` |
 | `STORAGE_CHAT_ID` | 存储群/频道 ID，Web·API 上传必需（或用首个管理员私聊兜底） |
 | `ADMIN_IDS` | 管理员 Telegram 用户 ID，逗号分隔 |
 | `WEB_BASE_URL` | 页面地址（上传页/详情页/后台）。有域名时填，如 `https://pic.example.com` |

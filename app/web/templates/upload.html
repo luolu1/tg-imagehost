@@ -1,80 +1,135 @@
 {% extends "base.html" %}
-{% block title %}上传 · TG 图床{% endblock %}
+{% block title %}上传 · {{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>上传图片</h1>
-  <p class="muted">在 Telegram 里发送 <code>/token</code> 获取 API Token，填入下方后即可上传。
-    也可以直接前往 <a href="/my">用户中心</a> 用 Token 登录，管理你的图片与配额。</p>
-
-  <label for="token">API Token</label>
-  <div class="row">
-    <input type="password" id="token" placeholder="粘贴你的 Token" style="flex:1">
-    <button class="ghost" type="button" onclick="saveToken()">保存</button>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">UPLOAD</div>
+    <h1>上传图片</h1>
+    <div class="muted">无需登录，直接选择图片即可上传，自动记录为游客上传。</div>
   </div>
-
-  <label>选择文件（单文件上限 {{ max_mb }} MB）</label>
-  <input type="file" id="file" accept="image/*">
-  <div id="preview" style="margin-top:14px"></div>
-
-  <div class="row" style="margin-top:16px">
-    <button type="button" id="uploadBtn" onclick="doUpload()">⬆️ 上传</button>
-    <span id="status" class="muted"></span>
-  </div>
+  <a class="btn ghost" href="/my">用户中心 →</a>
 </div>
 
 <div class="card">
-  <div class="spread"><h2>本次结果</h2></div>
-  <div id="results" class="muted">还没有上传记录。</div>
+  <div id="drop" class="dropzone">
+    <input type="file" id="file" accept="image/*" multiple hidden>
+    <div class="dz-inner">
+      <div class="dz-ic">⬆</div>
+      <div>点击选择，或把图片拖拽 / 粘贴到此处</div>
+      <div class="muted" style="font-size:12.5px">支持多选 · 单文件上限 {{ max_mb }} MB</div>
+    </div>
+  </div>
+  <div id="preview" style="margin-top:14px"></div>
+  <div class="row" style="margin-top:14px">
+    <button type="button" id="uploadBtn" onclick="doUpload()">⬆️ 开始上传</button>
+    <span id="status" class="muted"></span>
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-bottom:0">
+    想管理自己的图片与配额？在 Telegram 发送 <code>/token</code> 获取 Token，到
+    <a href="/my">用户中心</a> 登录即可。
+  </p>
+</div>
+
+<div class="card">
+  <h2>本次上传</h2>
+  <div id="results" class="muted">本次还没有上传。</div>
+</div>
+
+<div class="card">
+  <div class="spread"><h2>最近上传</h2><span class="muted">公开最新 {{ recent|length }} 张</span></div>
+  {% if recent %}
+  <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
+    {% for img in recent %}
+    <a href="/v/{{ img.id }}" class="recent-item">
+      <img src="{{ image_base }}/i/{{ img.id }}.{{ img.ext }}" loading="lazy">
+      <div class="muted mono" style="font-size:11.5px;margin-top:6px">{{ img.created_at.strftime('%m-%d %H:%M') }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">还没有任何上传。</p>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-  const tokenInput = document.getElementById('token');
-  tokenInput.value = localStorage.getItem('tg_token') || '';
-
-  function saveToken() {
-    localStorage.setItem('tg_token', tokenInput.value.trim());
-    toast('Token 已保存到本地');
+<style>
+  .dropzone {
+    border: 1.5px dashed var(--border); border-radius: 12px; padding: 34px 18px;
+    text-align: center; cursor: pointer; transition: .15s; color: var(--muted);
+    background: var(--bg);
   }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); color: var(--text); background: rgba(56,189,248,.04); }
+  .dz-inner { display: flex; flex-direction: column; gap: 7px; align-items: center; }
+  .dz-ic { font-size: 26px; color: var(--accent); }
+  #preview { display: flex; gap: 10px; flex-wrap: wrap; }
+  #preview img { width: 84px; height: 84px; object-fit: cover; border-radius: 9px; border: 1px solid var(--border); }
+  .recent-item { display: block; text-decoration: none; }
+  .recent-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 9px; border: 1px solid var(--border-soft); transition: .15s; }
+  .recent-item:hover img { border-color: var(--accent); }
+</style>
+<script>
+  const fileEl = document.getElementById('file');
+  const drop = document.getElementById('drop');
+  let queue = [];
 
-  document.getElementById('file').addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    const box = document.getElementById('preview');
-    if (!f) { box.innerHTML = ''; return; }
-    const url = URL.createObjectURL(f);
-    box.innerHTML = `<img src="${url}" style="max-width:100%;max-height:320px;border-radius:10px;border:1px solid var(--border)">`;
+  drop.addEventListener('click', () => fileEl.click());
+  fileEl.addEventListener('change', () => addFiles(fileEl.files));
+
+  ['dragover', 'dragenter'].forEach(ev =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
+
+  window.addEventListener('paste', (e) => {
+    const items = (e.clipboardData || {}).items || [];
+    const files = [];
+    for (const it of items) { if (it.kind === 'file') files.push(it.getAsFile()); }
+    if (files.length) addFiles(files);
   });
 
+  function addFiles(fileList) {
+    for (const f of fileList) { if (f && f.type.startsWith('image/')) queue.push(f); }
+    renderPreview();
+  }
+
+  function renderPreview() {
+    const box = document.getElementById('preview');
+    box.innerHTML = '';
+    queue.forEach(f => {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      box.appendChild(img);
+    });
+    document.getElementById('status').textContent = queue.length ? queue.length + ' 张待上传' : '';
+  }
+
   async function doUpload() {
-    const file = document.getElementById('file').files[0];
-    const token = tokenInput.value.trim();
     const status = document.getElementById('status');
-    if (!file) { toast('请选择文件', true); return; }
-    if (!token) { toast('请填写 API Token', true); return; }
-
-    const fd = new FormData();
-    fd.append('file', file);
-    status.textContent = '上传中…';
+    if (!queue.length) { toast('请选择图片', true); return; }
     document.getElementById('uploadBtn').disabled = true;
-
-    try {
-      const resp = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token },
-        body: fd,
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || '上传失败');
-      addResult(data);
-      status.textContent = '完成 ✅';
-      toast('上传成功');
-    } catch (err) {
-      status.textContent = '';
-      toast(err.message, true);
-    } finally {
-      document.getElementById('uploadBtn').disabled = false;
+    let ok = 0;
+    for (let i = 0; i < queue.length; i++) {
+      status.textContent = `上传中 ${i + 1}/${queue.length}…`;
+      const fd = new FormData();
+      fd.append('file', queue[i]);
+      try {
+        const resp = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || '上传失败');
+        addResult(data);
+        ok++;
+      } catch (err) {
+        toast(err.message, true);
+      }
     }
+    status.textContent = `完成 ${ok}/${queue.length} ✅`;
+    toast(ok ? '上传成功' : '上传失败', !ok);
+    queue = [];
+    document.getElementById('preview').innerHTML = '';
+    document.getElementById('uploadBtn').disabled = false;
+    if (ok) setTimeout(() => location.reload(), 900);
   }
 
   function addResult(d) {

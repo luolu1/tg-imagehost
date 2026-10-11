@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}登录用户中心 · TG 图床{% endblock %}
+{% block title %}登录 · {{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}{% endblock %}
 {% block content %}
 <div style="max-width:460px;margin:6vh auto 0">
   <div class="card">
