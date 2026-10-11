@@ -22,7 +22,7 @@ from app.utils import human_size
 from app.web.deps import current_api_user
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["api"])
+router = APIRouter(prefix="/api", tags=["API"])
 
 
 def _serialize(image) -> dict:
@@ -40,7 +40,12 @@ def _serialize(image) -> dict:
     }
 
 
-@router.get("/me")
+@router.get(
+    "/me",
+    summary="获取当前用户信息",
+    description="返回 Token 对应用户的用量、配额等信息。需要在 "
+    "`Authorization: Bearer <token>` 或 `X-API-Token` 头中携带 API Token。",
+)
 async def api_me(user: User = Depends(current_api_user), session: AsyncSession = Depends(get_session)):
     count, size = await get_user_stats(session, user.id)
     quota = effective_quota(user)
@@ -54,7 +59,11 @@ async def api_me(user: User = Depends(current_api_user), session: AsyncSession =
     }
 
 
-@router.get("/images")
+@router.get(
+    "/images",
+    summary="列出我的图片",
+    description="分页返回当前用户上传的图片（最新在前）。",
+)
 async def api_images(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -65,7 +74,12 @@ async def api_images(
     return {"items": [_serialize(i) for i in images], "limit": limit, "offset": offset}
 
 
-@router.post("/images/bulk-delete")
+@router.post(
+    "/images/bulk-delete",
+    summary="批量删除图片",
+    description="按 ID 列表批量删除图片。请求体为 `{\"ids\": [\"id1\", \"id2\"]}`。"
+    "普通用户只能删自己的图片，管理员可删任意图片。",
+)
 async def api_bulk_delete(
     payload: dict,
     user: User = Depends(current_api_user),
@@ -78,7 +92,13 @@ async def api_bulk_delete(
     return {"ok": True, "deleted": deleted}
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="上传图片",
+    description="以 `multipart/form-data` 上传单个文件（字段名 `file`）。"
+    "上传成功返回图片直链、详情页地址等信息。受单文件大小与用户配额限制。",
+)
 async def api_upload(
     file: UploadFile = File(...),
     user: User = Depends(current_api_user),
@@ -104,7 +124,12 @@ async def api_upload(
     return _serialize(image)
 
 
-@router.delete("/images/{image_id}", status_code=status.HTTP_200_OK)
+@router.delete(
+    "/images/{image_id}",
+    status_code=status.HTTP_200_OK,
+    summary="删除单张图片",
+    description="删除指定 ID 的图片。普通用户只能删自己的，管理员可删任意图片。",
+)
 async def api_delete(
     image_id: str,
     user: User = Depends(current_api_user),

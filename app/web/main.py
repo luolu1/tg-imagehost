@@ -24,7 +24,33 @@ async def lifespan(app: FastAPI):
     await close_bot()
 
 
-app = FastAPI(title="TG Image Host", version="1.0.0", lifespan=lifespan)
+API_DESCRIPTION = """\
+基于 Telegram 的图床服务 REST API。
+
+## 认证
+除游客上传外，所有接口都需要 **API Token**。在 Telegram 里向机器人发送 `/token`
+获取，然后在请求头中携带（二选一）：
+
+- `Authorization: Bearer <token>`
+- `X-API-Token: <token>`
+
+## 交互式文档
+- Swagger UI：`/docs`
+- ReDoc：`/redoc`
+- OpenAPI JSON：`/openapi.json`
+"""
+
+app = FastAPI(
+    title=f"{settings.site_name} API",
+    version="1.0.0",
+    description=API_DESCRIPTION,
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "API", "description": "图片上传、查询与删除接口（需 API Token）。"},
+    ],
+)
 
 
 @app.middleware("http")

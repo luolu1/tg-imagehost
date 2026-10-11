@@ -12,6 +12,7 @@
 - 🧾 内置使用条款页（`/tos`）与站点图标（favicon）
 - 👤 用户中心（用 API Token 登录，管理自己的图片与用量）
 - 🔌 REST API，可对接 PicGo / ShareX / 自定义脚本
+- 📖 内置 API 文档：`/api-docs`（示例）+ `/docs` Swagger + `/redoc` + `/openapi.json`
 - 🗑 删除与权限管理（用户删自己的，管理员删全部）
 - 🚫 封禁 / 解封用户、广播、用户用量查询
 - 📊 管理后台：统计图表、图片列表、用户列表，支持批量勾选操作
@@ -102,6 +103,7 @@ python run_web.py
 - 用户中心：`http://<host>:8080/my`（用 `/token` 拿到的 API Token 登录，可上传、查看/批量删除自己的图片、查看配额与上传趋势）
 - 图片页面：`http://<host>:8080/v/<id>`
 - 使用条款：`http://<host>:8080/tos`
+- API 文档：`http://<host>:8080/api-docs`（接口说明 + cURL 示例；交互式文档见下）
 - 管理后台：`http://<host>:8080/admin`（无独立账号密码；管理员用自己的 API Token 在用户中心登录后自动进入）
 
 管理后台没有单独的账号密码。**管理员 = `.env` 中 `ADMIN_IDS` 里的用户，或在后台/Telegram 里被设为管理员的用户**。
@@ -141,6 +143,13 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" \
 ```
 
 也支持 `X-API-Token: <TOKEN>` 请求头。
+
+**交互式文档**：
+
+- 接口总览（含 cURL 示例）：`http://<host>:8080/api-docs`
+- Swagger UI：`http://<host>:8080/docs`
+- ReDoc：`http://<host>:8080/redoc`
+- OpenAPI JSON：`http://<host>:8080/openapi.json`
 
 ## 配置项
 

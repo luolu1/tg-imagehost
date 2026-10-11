@@ -203,6 +203,14 @@ def main() -> int:
         assert fav.status_code == 200 and "svg" in fav.headers.get("content-type", "")
         tos = client.get("/tos")
         assert tos.status_code == 200 and "使用条款" in tos.text
+        # API docs: human page + interactive docs + OpenAPI schema
+        api_docs = client.get("/api-docs")
+        assert api_docs.status_code == 200 and "/api/upload" in api_docs.text
+        assert client.get("/docs").status_code == 200
+        assert client.get("/redoc").status_code == 200
+        schema = client.get("/openapi.json")
+        assert schema.status_code == 200
+        assert "/api/upload" in schema.json()["paths"]
 
         # --- guest upload: no token needed, stored ownerless + source=guest ---
         import io

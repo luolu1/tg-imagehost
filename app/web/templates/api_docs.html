@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% set _site = request.state.site_name if request.state and request.state.site_name else 'TG 图床' %}
+{% block title %}API 文档 · {{ _site }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">API REFERENCE</div>
+    <h1>API 文档</h1>
+    <div class="muted">用 API Token 调用 REST 接口，可对接 PicGo / ShareX / 自定义脚本。</div>
+  </div>
+  <div class="row">
+    <a class="btn ghost" href="/docs">Swagger UI →</a>
+    <a class="btn ghost" href="/redoc">ReDoc →</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>认证</h2>
+  <p class="muted">在 Telegram 向机器人发送 <code>/token</code> 获取你的 API Token，然后在请求头中携带（二选一）：</p>
+  <div class="codebox">Authorization: Bearer &lt;token&gt;</div>
+  <div class="codebox" style="margin-top:8px">X-API-Token: &lt;token&gt;</div>
+  <p class="muted" style="margin:12px 0 0;font-size:13px">
+    基础地址：<code>{{ api_base }}</code> ·
+    交互式文档：<a href="/docs">/docs</a>、<a href="/redoc">/redoc</a>、
+    <a href="/openapi.json">/openapi.json</a>
+  </p>
+</div>
+
+<div class="card ep">
+  <div class="ep-head"><span class="badge info">POST</span><code>/api/upload</code></div>
+  <p class="muted">上传单张图片（<code>multipart/form-data</code>，字段名 <code>file</code>）。单文件上限 {{ max_mb }} MB，受用户配额限制。</p>
+  <label>cURL 示例</label>
+  <div class="codebox">curl -X POST "{{ api_base }}/upload" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@photo.png"</div>
+  <label>返回 <span class="muted">201 Created</span></label>
+  <div class="codebox">{
+  "id": "ab12cd",
+  "url": "https://your-host/i/ab12cd.png",
+  "page": "https://your-host/v/ab12cd",
+  "file_name": "photo.png",
+  "mime_type": "image/png",
+  "size": 20480,
+  "width": 800,
+  "height": 600,
+  "views": 0,
+  "created_at": "2026-01-01T12:00:00"
+}</div>
+</div>
+
+<div class="card ep">
+  <div class="ep-head"><span class="badge ok">GET</span><code>/api/me</code></div>
+  <p class="muted">获取当前用户信息（用量、配额）。</p>
+  <div class="codebox">curl "{{ api_base }}/me" -H "Authorization: Bearer YOUR_TOKEN"</div>
+</div>
+
+<div class="card ep">
+  <div class="ep-head"><span class="badge ok">GET</span><code>/api/images</code></div>
+  <p class="muted">分页列出我的图片（最新在前）。查询参数：<code>limit</code>（1-200，默认 50）、<code>offset</code>（默认 0）。</p>
+  <div class="codebox">curl "{{ api_base }}/images?limit=20&amp;offset=0" \
+  -H "Authorization: Bearer YOUR_TOKEN"</div>
+</div>
+
+<div class="card ep">
+  <div class="ep-head"><span class="badge bad">DELETE</span><code>/api/images/{id}</code></div>
+  <p class="muted">删除指定图片。普通用户只能删自己的，管理员可删任意图片。</p>
+  <div class="codebox">curl -X DELETE "{{ api_base }}/images/ab12cd" \
+  -H "Authorization: Bearer YOUR_TOKEN"</div>
+</div>
+
+<div class="card ep">
+  <div class="ep-head"><span class="badge bad">POST</span><code>/api/images/bulk-delete</code></div>
+  <p class="muted">按 ID 列表批量删除。请求体为 JSON：<code>{"ids": ["id1", "id2"]}</code>。</p>
+  <div class="codebox">curl -X POST "{{ api_base }}/images/bulk-delete" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": ["ab12cd", "ef34gh"]}'</div>
+</div>
+
+<style>
+  .ep .ep-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ep .ep-head code { font-size: 14px; color: var(--text); }
+  .ep .codebox { white-space: pre; overflow-x: auto; }
+</style>
+{% endblock %}

@@ -89,6 +89,18 @@ async def tos_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "tos.html", {})
 
 
+@router.get("/api-docs", response_class=HTMLResponse, include_in_schema=False)
+async def api_docs_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "api_docs.html",
+        {
+            "api_base": f"{settings.web_base}/api",
+            "max_mb": settings.max_upload_mb,
+        },
+    )
+
+
 @router.get("/upload", response_class=HTMLResponse, include_in_schema=False)
 async def upload_page(
     request: Request,
