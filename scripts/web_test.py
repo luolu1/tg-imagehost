@@ -198,6 +198,11 @@ def main() -> int:
         # --- public pages render ---
         assert client.get("/upload").status_code == 200
         assert client.get("/").status_code in (200, 307)
+        # favicon + TOS
+        fav = client.get("/favicon.svg")
+        assert fav.status_code == 200 and "svg" in fav.headers.get("content-type", "")
+        tos = client.get("/tos")
+        assert tos.status_code == 200 and "使用条款" in tos.text
 
         # --- guest upload: no token needed, stored ownerless + source=guest ---
         import io

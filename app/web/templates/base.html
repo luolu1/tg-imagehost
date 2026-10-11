@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico">
   <title>{% block title %}{{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}{% endblock %}</title>
   <style>
     :root {
@@ -240,6 +242,14 @@
       header.top { padding: 10px 14px; }
       header.top .brand .tag { display: none; }
     }
+    .site-foot {
+      max-width: 1180px; margin: 0 auto; padding: 22px; display: flex;
+      align-items: center; gap: 10px; flex-wrap: wrap;
+      color: var(--faint); font-size: 12.5px; border-top: 1px solid var(--border-soft);
+    }
+    .site-foot a { color: var(--muted); }
+    .site-foot a:hover { color: var(--accent); }
+    .site-foot .sep { color: var(--border); }
   </style>
 </head>
 <body>
@@ -265,6 +275,13 @@
   <main>
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-foot">
+    <span>{{ request.state.site_name if request.state and request.state.site_name else 'TG 图床' }}</span>
+    <span class="sep">·</span>
+    <a href="/tos">使用条款</a>
+    <span class="sep">·</span>
+    <a href="/upload">上传</a>
+  </footer>
   <div id="toast" class="toast"></div>
   <script>
     function toast(msg, isErr) {

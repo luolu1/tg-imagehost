@@ -4,7 +4,13 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +25,20 @@ router = APIRouter(tags=["pages"])
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# Brand mark used as the browser favicon (inline SVG, no external asset needed).
+FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    '<stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#818cf8"/>'
+    "</linearGradient></defs>"
+    '<rect width="64" height="64" rx="14" fill="#06080c"/>'
+    '<rect x="10" y="10" width="44" height="44" rx="10" fill="none" '
+    'stroke="url(#g)" stroke-width="4"/>'
+    '<circle cx="24" cy="24" r="5" fill="url(#g)"/>'
+    '<path d="M16 46l12-13 8 8 7-7 7 8v4a2 2 0 0 1-2 2H18a2 2 0 0 1-2-2z" '
+    'fill="url(#g)"/></svg>'
+)
 
 _EXT_MIME = {
     "jpg": "image/jpeg",
@@ -43,6 +63,30 @@ def _extract_id(filename: str) -> str:
 @router.get("/", include_in_schema=False)
 async def index() -> RedirectResponse:
     return RedirectResponse(url="/upload")
+
+
+@router.get("/favicon.svg", include_in_schema=False)
+async def favicon_svg() -> Response:
+    return Response(
+        content=FAVICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=604800"},
+    )
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico() -> Response:
+    # Browsers that request .ico get the same SVG mark.
+    return Response(
+        content=FAVICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=604800"},
+    )
+
+
+@router.get("/tos", response_class=HTMLResponse, include_in_schema=False)
+async def tos_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "tos.html", {})
 
 
 @router.get("/upload", response_class=HTMLResponse, include_in_schema=False)

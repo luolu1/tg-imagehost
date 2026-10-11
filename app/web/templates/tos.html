@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set _site = request.state.site_name if request.state and request.state.site_name else 'TG 图床' %}
+{% block title %}使用条款 · {{ _site }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">TERMS OF SERVICE</div>
+    <h1>使用条款</h1>
+    <div class="muted">使用 {{ _site }} 即表示你已阅读并同意以下条款。</div>
+  </div>
+  <a class="btn ghost" href="/upload">返回上传</a>
+</div>
+
+<div class="card tos">
+  <h2>1. 服务说明</h2>
+  <p>{{ _site }}（下称“本服务”）是一个基于 Telegram 的图片托管服务。图片实际存储在
+  Telegram，服务仅保存引用信息并对外提供访问链接。本服务按“现状”提供，不保证
+  永久可用、链接长期有效或数据不丢失，请对重要文件自行备份。</p>
+
+  <h2>2. 账户与游客上传</h2>
+  <p>你可以在上传页以游客身份直接上传，也可以使用 Telegram 机器人获取的 API Token
+  登录用户中心管理自己的图片。请妥善保管你的 Token，因 Token 泄露导致的后果由你
+  自行承担。</p>
+
+  <h2>3. 内容规范（禁止上传）</h2>
+  <p>你对自己上传的全部内容负责，并保证拥有相应的合法权利。<b>严禁</b>上传以下内容：</p>
+  <ul>
+    <li>违反所在地区法律法规的任何内容；</li>
+    <li>涉及未成年人的色情或性暗示内容（NCII / CSAM），一经发现将立即删除并可能上报；</li>
+    <li>暴力、恐怖主义、仇恨歧视或煽动违法犯罪的内容；</li>
+    <li>侵犯他人著作权、商标、隐私或其他合法权益的内容；</li>
+    <li>恶意软件、钓鱼、欺诈、赌博及其他违法有害信息；</li>
+    <li>他人的私密信息或未经授权的个人身份信息。</li>
+  </ul>
+
+  <h2>4. 合理使用</h2>
+  <p>请勿滥用本服务，包括但不限于：自动化批量刷量、超额占用资源、将本服务用作
+  不相关业务的文件分发或 CDN、规避速率与容量限制等。管理员有权对异常使用进行
+  限制或封禁。</p>
+
+  <h2>5. 内容处置</h2>
+  <p>管理员有权在无需事先通知的情况下，删除任何违反本条款或涉嫌违法的内容，
+  并对相关账户采取封禁等措施。你也可以随时删除自己上传的图片。</p>
+
+  <h2>6. 免责声明</h2>
+  <p>在适用法律允许的最大范围内，本服务及其运营者不对因使用或无法使用本服务
+  而产生的任何直接或间接损失承担责任。你理解并同意自行承担使用本服务的风险。</p>
+
+  <h2>7. 条款变更</h2>
+  <p>本条款可能随时更新，更新后在本页面公布即生效。继续使用本服务即视为接受
+  修订后的条款。</p>
+
+  <p class="muted" style="margin-bottom:0">如对以上条款有疑问，请通过本站 Telegram 机器人联系管理员。</p>
+</div>
+
+<style>
+  .tos h2 { margin-top: 22px; }
+  .tos h2:first-child { margin-top: 0; }
+  .tos p { color: var(--text); }
+  .tos ul { margin: 8px 0 0; padding-left: 20px; color: var(--text); }
+  .tos li { margin: 5px 0; }
+</style>
+{% endblock %}
