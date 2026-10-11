@@ -9,7 +9,7 @@
   </div>
   <div class="row">
     {% if view == 'dashboard' %}<a class="btn ghost" href="/my/images">我的图片 →</a>{% else %}<a class="btn ghost" href="/my">返回概览</a>{% endif %}
-    <a class="btn ghost" href="/my/logout">退出登录</a>
+    {% if request.state and request.state.is_admin %}<a class="btn ghost" href="/admin">管理后台</a>{% endif %}
   </div>
 </div>
 

@@ -3,14 +3,14 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import SessionLocal, init_db
 from app.telegram_files import close_bot
 from app.web import admin, api, pages, user_portal
-from app.web.auth import ensure_admin_seeded
+from app.web.user_auth import is_admin_user, resolve_web_user
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -19,14 +19,27 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    async with SessionLocal() as session:
-        await ensure_admin_seeded(session)
     log.info("Web app ready. pages=%s images=%s", settings.web_base, settings.image_base)
     yield
     await close_bot()
 
 
 app = FastAPI(title="TG Image Host", version="1.0.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def attach_current_user(request: Request, call_next):
+    """Resolve the portal cookie once per request so templates can show the
+    right navigation (user center vs admin) without each route re-querying."""
+    request.state.me = None
+    request.state.is_admin = False
+    if request.cookies.get("tg_portal_token"):
+        async with SessionLocal() as session:
+            user = await resolve_web_user(request, session)
+        request.state.me = user
+        request.state.is_admin = is_admin_user(user)
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

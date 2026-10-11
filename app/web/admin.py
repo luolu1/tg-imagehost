@@ -3,14 +3,14 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_session
+from app.models import User
 from app.services import (
     delete_images,
     delete_user_images,
@@ -29,16 +29,9 @@ from app.services import (
     uploads_per_day,
 )
 from app.utils import human_size
-from app.web.auth import (
-    get_admin_username,
-    is_custom,
-    reset_admin_credentials,
-    set_admin_credentials,
-    verify_admin,
-)
+from app.web.user_auth import require_admin_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-security = HTTPBasic(auto_error=False)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 PAGE_SIZE = 25
@@ -58,52 +51,15 @@ def _parse_quota_mb(raw: str) -> int | None:
     return int(value * 1024 * 1024)
 
 
-async def admin_auth(
-    credentials: HTTPBasicCredentials | None = Depends(security),
-    session: AsyncSession = Depends(get_session),
-) -> str:
-    unauthorized = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Admin authentication required",
-        headers={"WWW-Authenticate": "Basic"},
-    )
-    if credentials is None:
-        raise unauthorized
-    if not await verify_admin(session, credentials.username, credentials.password):
-        raise unauthorized
-    return credentials.username
-
-
 def _page_links(page: int, total: int) -> dict:
     pages = max(1, math.ceil(total / PAGE_SIZE))
     return {"page": page, "pages": pages, "total": total}
 
 
-def _settings_context(
-    request: Request,
-    username: str,
-    custom: bool,
-    *,
-    message: str | None = None,
-    error: str | None = None,
-) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "admin.html",
-        {
-            "view": "settings",
-            "admin_username": username,
-            "custom": custom,
-            "message": message,
-            "error": error,
-        },
-    )
-
-
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard(
     request: Request,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     stats = await global_stats(session)
@@ -154,7 +110,7 @@ async def images_page(
     page: int = Query(1, ge=1),
     q: str | None = None,
     owner: int | None = None,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     offset = (page - 1) * PAGE_SIZE
@@ -184,7 +140,7 @@ async def images_page(
 @router.post("/images/{image_id}/delete", include_in_schema=False)
 async def delete_image(
     image_id: str,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     image = await get_image(session, image_id, include_deleted=True)
@@ -196,7 +152,7 @@ async def delete_image(
 @router.post("/images/bulk-delete", include_in_schema=False)
 async def bulk_delete_images(
     request: Request,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     form = await request.form()
@@ -210,7 +166,7 @@ async def users_page(
     request: Request,
     page: int = Query(1, ge=1),
     q: str | None = None,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     offset = (page - 1) * PAGE_SIZE
@@ -248,7 +204,7 @@ async def users_page(
 async def ban_user(
     user_id: int,
     unban: int = Query(0),
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     # Never allow banning a super admin (from .env).
@@ -262,7 +218,7 @@ async def ban_user(
 async def toggle_admin(
     user_id: int,
     remove: int = Query(0),
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     # Super admins (from .env) can never be demoted.
@@ -275,7 +231,7 @@ async def toggle_admin(
 @router.post("/users/{user_id}/wipe", include_in_schema=False)
 async def wipe_user_images(
     user_id: int,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     await delete_user_images(session, user_id)
@@ -286,7 +242,7 @@ async def wipe_user_images(
 async def set_quota(
     user_id: int,
     request: Request,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     form = await request.form()
@@ -304,7 +260,7 @@ async def set_quota(
 @router.post("/users/bulk", include_in_schema=False)
 async def bulk_users(
     request: Request,
-    _: str = Depends(admin_auth),
+    _: User = Depends(require_admin_user),
     session: AsyncSession = Depends(get_session),
 ) -> RedirectResponse:
     form = await request.form()
@@ -333,68 +289,3 @@ async def bulk_users(
         elif action == "wipe":
             await delete_user_images(session, uid)
     return RedirectResponse(url="/admin/users", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/settings", response_class=HTMLResponse, include_in_schema=False)
-async def settings_page(
-    request: Request,
-    _: str = Depends(admin_auth),
-    session: AsyncSession = Depends(get_session),
-) -> HTMLResponse:
-    return _settings_context(
-        request,
-        await get_admin_username(session),
-        await is_custom(session),
-    )
-
-
-@router.post("/settings", response_class=HTMLResponse, include_in_schema=False)
-async def update_settings(
-    request: Request,
-    _: str = Depends(admin_auth),
-    session: AsyncSession = Depends(get_session),
-) -> HTMLResponse:
-    form = await request.form()
-    username = str(form.get("username", "")).strip()
-    password = str(form.get("password", ""))
-    password2 = str(form.get("password2", ""))
-
-    if not username:
-        return _settings_context(
-            request,
-            await get_admin_username(session),
-            await is_custom(session),
-            error="用户名不能为空。",
-        )
-    if password or password2:
-        if password != password2:
-            return _settings_context(
-                request,
-                await get_admin_username(session),
-                await is_custom(session),
-                error="两次输入的密码不一致。",
-            )
-        if len(password) < 6:
-            return _settings_context(
-                request,
-                await get_admin_username(session),
-                await is_custom(session),
-                error="密码至少 6 位。",
-            )
-
-    await set_admin_credentials(session, username, password or None)
-    return _settings_context(
-        request,
-        username,
-        True,
-        message="已保存。若修改了用户名或密码，浏览器下次请求需要重新登录。",
-    )
-
-
-@router.post("/settings/reset", include_in_schema=False)
-async def reset_settings(
-    _: str = Depends(admin_auth),
-    session: AsyncSession = Depends(get_session),
-) -> RedirectResponse:
-    await reset_admin_credentials(session)
-    return RedirectResponse(url="/admin/settings", status_code=status.HTTP_303_SEE_OTHER)

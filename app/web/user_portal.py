@@ -34,6 +34,7 @@ from app.utils import human_size
 from app.web.user_auth import (
     COOKIE_MAX_AGE,
     COOKIE_NAME,
+    is_admin_user,
     require_web_user,
     resolve_web_user,
 )
@@ -118,7 +119,8 @@ async def login_submit(
         return templates.TemplateResponse(
             request, "my_login.html", {"error": "账号已被封禁。"}, status_code=403
         )
-    resp = RedirectResponse(url="/my", status_code=status.HTTP_303_SEE_OTHER)
+    target = "/admin" if is_admin_user(user) else "/my"
+    resp = RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
     return _set_login_cookie(resp, token)
 
 

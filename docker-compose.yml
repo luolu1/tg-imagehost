@@ -6,14 +6,18 @@ x-app: &app
   volumes:
     - ./data:/app/data
   restart: unless-stopped
+  networks:
+    - tg_bot_image_net
 
 services:
   web:
     <<: *app
     container_name: tg-imagehost-web
     command: python run_web.py
-    ports:
-      - "8080:8080"
+    # No host port mapping: the service is reachable inside the external
+    # network as http://tg-imagehost-web:8080 (e.g. via cloudflared tunnel).
+    expose:
+      - "8080"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
       interval: 30s
@@ -27,3 +31,8 @@ services:
     command: python run_bot.py
     depends_on:
       - web
+
+networks:
+  tg_bot_image_net:
+    external: true
+    name: cloudflared_default  # 直接映射到真实的外部网络

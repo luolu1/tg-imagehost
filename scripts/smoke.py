@@ -16,10 +16,10 @@ async def main() -> int:
     import app.uploads  # noqa: F401
     import app.web.admin  # noqa: F401
     import app.web.api  # noqa: F401
-    import app.web.auth  # noqa: F401
     import app.web.deps  # noqa: F401
     import app.web.main  # noqa: F401
     import app.web.pages  # noqa: F401
+    import app.web.user_auth  # noqa: F401
     from app.config import settings
     from app.db import SessionLocal, init_db
     from app.services import (
@@ -33,7 +33,7 @@ async def main() -> int:
         soft_delete_image,
     )
     from app.utils import human_size
-    from app.web import auth as admin_auth
+    from app.web.user_auth import is_admin_user
 
     await init_db()
     async with SessionLocal() as session:
@@ -64,36 +64,18 @@ async def main() -> int:
         count2, size2 = await get_user_stats(session, user.id)
         assert count2 == 0 and size2 == 0, (count2, size2)
 
-    # --- admin credentials + user management ---
-    assert admin_auth.verify_password("secret", admin_auth.hash_password("secret"))
-    assert not admin_auth.verify_password("wrong", admin_auth.hash_password("secret"))
-
+    # --- token-based admin detection + user management ---
     async with SessionLocal() as session:
-        await admin_auth.ensure_admin_seeded(session)
-        assert await admin_auth.verify_admin(
-            session, settings.admin_username, settings.admin_password
-        )
-        assert not await admin_auth.verify_admin(session, "nope", "nope")
-
-        await admin_auth.set_admin_credentials(session, "boss", "hunter2!")
-        assert await admin_auth.is_custom(session)
-        assert await admin_auth.verify_admin(session, "boss", "hunter2!")
-        assert not await admin_auth.verify_admin(
-            session, settings.admin_username, settings.admin_password
-        )
-
-        await admin_auth.reset_admin_credentials(session)
-        assert not await admin_auth.is_custom(session)
-        assert await admin_auth.verify_admin(
-            session, settings.admin_username, settings.admin_password
-        )
-
         # promote/demote + wipe images
         target = await get_or_create_user(session, 222222222, "member", "Member")
+        assert not is_admin_user(target)
         await set_admin(session, target.id, True)
-        assert (await session.get(type(target), target.id)).is_admin is True
+        target = await session.get(type(target), target.id)
+        assert target.is_admin is True
+        assert is_admin_user(target)
         await set_admin(session, target.id, False)
-        assert (await session.get(type(target), target.id)).is_admin is False
+        target = await session.get(type(target), target.id)
+        assert target.is_admin is False
 
         await create_image(
             session,

@@ -3,9 +3,11 @@
 {% block content %}
 <div style="max-width:460px;margin:6vh auto 0">
   <div class="card">
-    <h1>用户中心登录</h1>
+    <div class="eyebrow">ACCESS</div>
+    <h1>登录</h1>
     <p class="muted" style="margin-top:4px">
       在 Telegram 里给机器人发送 <code>/token</code> 获取你的 API Token，粘贴到下方登录。
+      管理员用自己的 Token 登录后即可进入管理后台。
     </p>
     {% if error %}<div class="banner err">{{ error }}</div>{% endif %}
     <form method="post" action="/my/login">

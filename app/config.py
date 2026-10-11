@@ -29,8 +29,6 @@ class Settings(BaseSettings):
     public_host: str = "localhost"
     web_host: str = "0.0.0.0"
     web_port: int = 8080
-    admin_username: str = "admin"
-    admin_password: str = "change-me-please"
 
     # Storage / DB
     database_url: str = "sqlite+aiosqlite:///./data/imagehost.db"

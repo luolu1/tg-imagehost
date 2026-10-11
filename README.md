@@ -12,6 +12,7 @@
 - 🗑 删除与权限管理（用户删自己的，管理员删全部）
 - 🚫 封禁 / 解封用户、广播、用户用量查询
 - 📊 管理后台：统计图表、图片列表、用户列表，支持批量勾选操作
+- 🔐 管理后台无独立账号密码，管理员用自己的 API Token 登录即进入
 - 🎯 按用户单独设置配额（后台或 `/quota` 命令）
 - ⏱ 记录每张图片的上传时间
 - 🧊 本地磁盘缓存 + LRU 淘汰，减轻 Telegram 取图压力
@@ -97,12 +98,13 @@ python run_web.py
 - 上传页：`http://<host>:8080/upload`
 - 用户中心：`http://<host>:8080/my`（用 `/token` 拿到的 API Token 登录，可上传、查看/批量删除自己的图片、查看配额与上传趋势）
 - 图片页面：`http://<host>:8080/v/<id>`
-- 管理后台：`http://<host>:8080/admin`（Basic Auth，用户名密码见 `.env`）
+- 管理后台：`http://<host>:8080/admin`（无独立账号密码；管理员用自己的 API Token 在用户中心登录后自动进入）
 
-管理后台可管理其他用户（封禁 / 解封、设为管理员 / 取消管理员、查看与清空其图片、
-**为每个用户单独设置配额**）、按图片 ID 搜索、**批量勾选删除图片**、
-**批量勾选用户操作**（封禁/解封/设管理员/取消/清空图片），并在 **账号设置** 页
-修改后台用户名与密码（覆盖 `.env` 默认值，可一键恢复默认）。
+管理后台没有单独的账号密码。**管理员 = `.env` 中 `ADMIN_IDS` 里的用户，或在后台/Telegram 里被设为管理员的用户**。
+他们在 `/my/login` 用自己的 API Token（Telegram 发送 `/token` 获取）登录后会自动跳转到 `/admin`；
+普通用户登录则进入自己的用户中心。管理后台可管理其他用户（封禁 / 解封、设为管理员 / 取消管理员、
+查看与清空其图片、**为每个用户单独设置配额**）、按图片 ID 搜索、**批量勾选删除图片**、
+**批量勾选用户操作**（封禁/解封/设管理员/取消/清空图片）。
 概览页包含近 14 天上传趋势图与来源分布图。
 
 ### API
@@ -147,7 +149,6 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" \
 | `IMAGE_BASE_URL` | 图片直链地址。可独立域名，如 `https://img.example.com`；留空则同 `WEB_BASE_URL` |
 | `PUBLIC_HOST` | 无域名时用于拼接地址的公网 IP/主机名 |
 | `WEB_HOST` / `WEB_PORT` | Web 监听地址；无域名时也用于拼接 `http://host:port` |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 后台 Basic Auth 默认账号密码（可在后台「账号设置」中修改） |
 | `DATABASE_URL` | 数据库连接，默认 SQLite |
 | `CACHE_DIR` / `CACHE_MAX_MB` | 本地缓存目录与上限 |
 | `MAX_UPLOAD_MB` | 单文件上限 |
@@ -250,8 +251,40 @@ docker compose up -d --build     # 更新代码后重建
 
 - `./data` 会挂载到容器内 `/app/data`，持久化 SQLite 数据库与图片缓存。
 - Web 容器带有健康检查（`/healthz`），状态可在 `docker compose ps` 中查看。
-- 默认对外端口为 `8080`；如需修改，请同步调整 `.env` 中的 `WEB_PORT`
-  与 compose 里的端口映射。
+- **修改 `.env` 后需要重建容器才能生效**：`env_file` 只在容器创建时注入，
+  `docker compose restart` 不会重新读取；请执行 `docker compose up -d`
+  （变量变化时会自动 recreate），或 `docker compose up -d --force-recreate`。
+
+#### 对外暴露方式
+
+仓库里的 `docker-compose.yml` **默认不映射宿主端口**，而是把两个容器加入一个
+外部网络（示例为 cloudflared 的 `cloudflared_default`），由隧道/反代按服务名
+`http://tg-imagehost-web:8080` 访问：
+
+```yaml
+services:
+  web:
+    expose:
+      - "8080"            # 仅容器网络内暴露，不发布到宿主
+
+networks:
+  tg_bot_image_net:
+    external: true
+    name: cloudflared_default   # 复用已存在的外部网络
+```
+
+> 这要求该外部网络已存在（`docker network ls` 可见）。cloudflared 隧道的
+> service 指向 `http://tg-imagehost-web:8080` 即可。
+
+如果你**没有外部网络、想直接用 IP:端口访问**，把 `web` 服务改成端口映射，
+并删除 `networks` 相关配置即可：
+
+```yaml
+services:
+  web:
+    ports:
+      - "8080:8080"       # 发布到宿主 8080
+```
 
 ### 反向代理（可选）
 
