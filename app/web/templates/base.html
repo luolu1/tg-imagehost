@@ -263,6 +263,7 @@
     {% set _me = request.state.me if request.state else None %}
     <nav>
       <a href="/upload" class="{% if _p == '/upload' %}active{% endif %}">上传</a>
+      <a href="/tos" class="{% if _p == '/tos' %}active{% endif %}">使用条款</a>
       <a href="/my" class="{% if _p.startswith('/my') %}active{% endif %}">用户中心</a>
       {% if request.state and request.state.is_admin %}
       <a href="/admin" class="{% if _p.startswith('/admin') %}active{% endif %}">管理后台</a>
