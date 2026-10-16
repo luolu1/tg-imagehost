@@ -1,0 +1,12 @@
+# Optional override for building the image locally instead of pulling from GHCR.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Normal deployments should use the published image and NOT this file.
+services:
+  web:
+    build:
+      context: .
+  bot:
+    build:
+      context: .

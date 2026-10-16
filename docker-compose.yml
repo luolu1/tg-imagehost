@@ -1,7 +1,10 @@
 # Shared settings for both processes (web + bot).
+# The image is built by GitHub Actions and published to GHCR, so there is no
+# local `build:` here — just pull it. Override the tag/registry by setting
+# IMAGE in .env (e.g. IMAGE=ghcr.io/<owner>/tg-imagehost:v1.0.0).
 x-app: &app
-  build: .
-  image: tg-imagehost:latest
+  image: ${IMAGE:-ghcr.io/luolu1/tg-imagehost:latest}
+  pull_policy: always
   env_file: .env
   volumes:
     - ./data:/app/data

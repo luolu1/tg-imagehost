@@ -217,11 +217,11 @@ journalctl -u tg-imagehost-web -f                    # Web 实时日志
 
 ### 方式二：Docker
 
-先构建镜像，再分别以容器运行 Web 与 Bot：
+镜像已由 GitHub Actions 构建并发布到 GHCR，直接拉取即可（无需本地 `docker build`）：
 
 ```bash
-# 构建镜像
-docker build -t tg-imagehost .
+# 拉取镜像
+docker pull ghcr.io/luolu1/tg-imagehost:latest
 
 # 启动 Web（映射 8080，挂载 ./data 持久化数据库与缓存）
 docker run -d --name tg-imagehost-web \
@@ -229,14 +229,14 @@ docker run -d --name tg-imagehost-web \
   -p 8080:8080 \
   -v "$PWD/data:/app/data" \
   --restart unless-stopped \
-  tg-imagehost python run_web.py
+  ghcr.io/luolu1/tg-imagehost:latest python run_web.py
 
 # 启动 Bot
 docker run -d --name tg-imagehost-bot \
   --env-file .env \
   -v "$PWD/data:/app/data" \
   --restart unless-stopped \
-  tg-imagehost python run_bot.py
+  ghcr.io/luolu1/tg-imagehost:latest python run_bot.py
 ```
 
 ```bash
@@ -246,28 +246,39 @@ docker rm -f tg-imagehost-web tg-imagehost-bot   # 停止并删除容器
 ```
 
 > 两个容器必须挂载**同一个** `./data` 目录，否则数据库与缓存无法共享。
+>
+> 若镜像包（package）不是公开的，拉取前先登录：
+> `echo <你的PAT> | docker login ghcr.io -u <你的GitHub用户名> --password-stdin`
+> （PAT 只需 `read:packages` 权限）。
 
 ### 方式三：Docker Compose（推荐）
 
-仓库自带 `docker-compose.yml`，会构建一次镜像并同时管理 Web 与 Bot。
+仓库自带的 `docker-compose.yml` **不再本地构建**，而是拉取 GHCR 上的镜像并同时管理 Web 与 Bot，
+所以日常只需要维护 `.env`：
 
 ```bash
 cp .env.example .env
-vim .env
+vim .env                  # 至少填 BOT_TOKEN；如需固定版本改 IMAGE=
 
-docker compose up -d --build     # 构建并后台启动
-docker compose ps                # 查看状态（Web 带健康检查）
-docker compose logs -f           # 查看全部日志
-docker compose logs -f web       # 只看 Web 日志
-docker compose down              # 停止并移除容器
-docker compose up -d --build     # 更新代码后重建
+docker compose pull       # 拉取最新镜像
+docker compose up -d      # 后台启动
+docker compose ps         # 查看状态（Web 带健康检查）
+docker compose logs -f    # 查看全部日志
+docker compose logs -f web  # 只看 Web 日志
+docker compose down       # 停止并移除容器
+docker compose up -d      # 拉取新版本后升级
 ```
 
+- 镜像地址由 `.env` 里的 `IMAGE` 控制，默认 `ghcr.io/luolu1/tg-imagehost:latest`；
+  想固定版本就写成 `IMAGE=ghcr.io/luolu1/tg-imagehost:v1.0.0`。
 - `./data` 会挂载到容器内 `/app/data`，持久化 SQLite 数据库与图片缓存。
 - Web 容器带有健康检查（`/healthz`），状态可在 `docker compose ps` 中查看。
 - **修改 `.env` 后需要重建容器才能生效**：`env_file` 只在容器创建时注入，
   `docker compose restart` 不会重新读取；请执行 `docker compose up -d`
   （变量变化时会自动 recreate），或 `docker compose up -d --force-recreate`。
+
+> 仍然想本地构建（例如改代码后自测）？用构建覆盖文件：
+> `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
 
 #### 对外暴露方式
 
@@ -299,6 +310,25 @@ services:
     ports:
       - "8080:8080"       # 发布到宿主 8080
 ```
+
+### 镜像构建（GitHub Actions → GHCR）
+
+仓库内置工作流 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)，
+在每次推送到 `main`、打 `v*` 标签或手动触发（Actions 页面 `Run workflow`）时，
+自动构建多架构（amd64 / arm64）镜像并推送到 GitHub Container Registry：
+
+```
+ghcr.io/luolu1/tg-imagehost:latest      # 默认分支
+ghcr.io/luolu1/tg-imagehost:v1.0.0      # 打 tag 时
+ghcr.io/luolu1/tg-imagehost:sha-xxxxxxx # 每次提交
+```
+
+- 使用仓库自带的 `GITHUB_TOKEN` 推送，无需额外配置 Secret。
+- **首次运行后**，到 GitHub 仓库的 `Packages`（或在个人头像 → `Packages`）里把该镜像的
+  可见性设为 `Public`，服务器才能匿名 `docker pull`；若保持私有，则需按上文 `docker login ghcr.io`。
+- 想用固定版本，只需改本地 `.env` 里的 `IMAGE=...`，无需改动 `docker-compose.yml`。
+- 如果你 fork 了仓库，把 `docker-compose.yml` 的默认镜像地址和 `.env` 里的 `IMAGE`
+  中的 `luolu1` 换成你自己的用户名即可（工作流会自动用 `github.repository` 推送）。
 
 ### 反向代理（可选）
 
@@ -340,8 +370,10 @@ app/
     admin.py           # 管理后台
 deploy/                # systemd unit 模板
 scripts/               # 冒烟 / 端到端测试
+.github/workflows/     # GitHub Actions：构建并推送 GHCR 镜像
 Dockerfile             # 容器镜像
-docker-compose.yml     # Compose 编排（web + bot）
+docker-compose.yml     # Compose 编排（web + bot，拉取 GHCR 镜像）
+docker-compose.build.yml  # 可选：本地构建覆盖文件
 .env.example           # 配置模板
 run_bot.py             # Bot 进程入口
 run_web.py             # Web 进程入口
